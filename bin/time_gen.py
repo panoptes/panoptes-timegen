@@ -1,10 +1,18 @@
 # The command line script that generates the timelapse
 # Libraries imported here.
+import logging
 import click
 import os
-import tqdm
+import sys
 import numpy as np
 import astropy.io.fits as fits
+
+# Configure log file
+logging.basicConfig(format='%(asctime)s %(message)s',
+                datefmt='%m/%d/%Y %I:%M:%S %p',
+                filename='..\logs.log',
+                filemode='w',
+                level=logging.INFO)
 
 #Step 0: Read command line args
 @click.command()
@@ -13,8 +21,13 @@ import astropy.io.fits as fits
 @click.option('--options',help='Additional options to be specified.')
 def main(in_path,out_path,options):
     """ Generates a timelapse from the input FITS files (directory) and saves it to the given path."""
-    print(in_path,out_path)
+    check_input_path(in_path)
 
+def check_input_path(path):
+    if not os.path.isdir(path):
+        logging.error('Directory invalid')
+        sys.exit('Directory invalid')
+        
 # A broad overview of the pipeline
 # 1. Get directory of FITS files. One directory of observations. If download txt file specified, take care of everything.
 
