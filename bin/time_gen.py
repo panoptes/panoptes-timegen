@@ -6,6 +6,7 @@ import os
 import sys
 import numpy as np
 import astropy.io.fits as fits
+from colour_demosaicing import demosaicing_CFA_Bayer_bilinear, demosaicing_CFA_Bayer_Malvar2004 , demosaicing_CFA_Bayer_Menon2007
 
 # Configure log file
 logging.basicConfig(format='%(asctime)s %(message)s',
@@ -13,6 +14,15 @@ logging.basicConfig(format='%(asctime)s %(message)s',
                 filename='..\logs.log',
                 filemode='w',
                 level=logging.INFO)
+
+logging.info('Importing finished')                
+# logging errors and exiting
+def log_error_exit(message):
+    """ Simple wrappper around the logging.error and sys.exit functions. Logs the ERROR message to the log file
+        and exits the program with the same message sent to stdout.
+    """
+    logging.error(message)
+    sys.exit(message)
 
 #Step 0: Read command line args
 @click.command()
@@ -37,7 +47,7 @@ def main(in_path,out_path,options):
 
 def get_file_list(path):
     """ Helper function to validate the given in_path. Checks if the path is valid and if valid checks if the 
-        directory contains valid FITS files. (*.fits or *.fits.fz)
+        directory contains valid FITS files and returns a list of paths. (*.fits or *.fits.fz)
         ----------
         parameters
         ----------
@@ -48,8 +58,7 @@ def get_file_list(path):
         List of filenames if path is valid.
     """
     if not os.path.isdir(path):
-        logging.error('Directory invalid')
-        sys.exit('Directory invalid')
+        log_error_exit('Directory invalid.')
     else:
         fits_list = []
         # The FITS files are named in numerically ascending order with an optional 
@@ -57,11 +66,28 @@ def get_file_list(path):
             if file.endswith('fits.fz') or file.endswith('.fits'):
                 fits_list.append(os.path.join(path,file))
         if len(fits_list) == 0:
-            logging.error('No FITS files found')   
-            sys.exit("No FITS files found in the directory")        
+            log_error_exit('No FITS files found !')       
     return sorted(fits_list)        
        
-        
+def debayer_image_array(data,algorithm='bilinear'):
+    """ Returns the RGB data after bilinear interpolation on the given array.
+        ----------
+        parameters  
+        ----------
+        data : The input array containing the image data. Array like of shape (rows,columns)
+        algorithm : The algorithm to use for the debayering operation. 
+        {'bilinear','malvar2004','menon2007'}
+        ----------
+        returns
+        ----------
+        numpy array of shape (rows,columns,3)
+    """
+    # Check to see if data is two dimensional
+
+
+
+
+
 # A broad overview of the pipeline
 # 1. Get directory of FITS files. One directory of observations. If download txt file specified, take care of everything.
 
