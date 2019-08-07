@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(
-    name = "time_gen",
+    name = "panoptes_timegen",
     version = "0.0.1",
     author = "Naga",
     author_email = "devarintinagasaiabhinay@gmail.com",
@@ -9,7 +9,7 @@ setup(
     license = "MIT",
     keywords = "timelapse generator",
     url = "",
-    packages=['time_gen', 'tests'],
+    packages=['panoptes_timegen', 'tests'],
     install_requires = ['astropy','Click','colour_demosaicing'],
     classifiers=[
         "Development Status :: 3 - Alpha",
