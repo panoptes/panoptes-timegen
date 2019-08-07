@@ -1,3 +1,6 @@
+*.py[cod]
+__pycache__
 pan-tg/ 
 .vscode/
 *.log
+*.egg-info
