@@ -88,6 +88,39 @@ def debayer_image_array(data, algorithm = 'bilinear',pattern = 'GRGB'):
 # 3. Take files from temporary location and build timelapse from them.
 
 # Other Requirements: Should be able to continue from where it left off in case of breakdown.    
+def save_as_jpg(image_data, path, bitdepth):
+    """ Save the given image data as a jpg image at the path specified. A helper function to store the intermediate
+    jpg images before generating the timelapse from them.
+    
+    ------------
+    parameters
+    ------------
+    image_data : numpy array of shape (rows,columns,3) returned by debayering. datatype should be np.uint16
+    path : The path to where the jpgs should be saved.
+    bitdepth : The number of bits per pixel of the jpg. {8 or 16}
+
+    ------------
+    returns
+    ------------
+    True if file write was successful. Else exits with error.
+    """
+    #TODO
+    # Use OpenCV here ?
+
+def generate_timelapse_from_jpgs(path_to_jpgs, output_path):
+    """ Read the path to the jpg files and create a video stream. The output is a single video file
+        
+    ------------
+    parameters
+    ------------
+    path_to_jpgs : The file path to the previously generated jpgs/tiffs.
+    output_path : The path to where to write the video.
+
+    ------------
+    returns
+    ------------
+    True if video write was successful. Else exits with error.
+    """    
 
 #Step 1:
 # Check if the given directory is valid. If not valid: exit and show proper usage guidelines
