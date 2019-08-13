@@ -10,7 +10,7 @@ setup(
     keywords = "timelapse generator",
     url = "",
     packages=['panoptes_timegen', 'tests'],
-    install_requires = ['astropy','Click','colour_demosaicing'],
+    install_requires = ['astropy','Click','colour_demosaicing','opencv-python'],
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Topic :: Utilities",

@@ -4,3 +4,5 @@ pan-tg/
 .vscode/
 *.log
 *.egg-info
+notebooks/
+*.dll
