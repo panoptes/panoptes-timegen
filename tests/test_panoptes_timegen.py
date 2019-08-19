@@ -1,4 +1,4 @@
-from panoptes_timegen import time_gen
+import time_gen
 
-assert time_gen.get_file_list(None) == True
+assert time_gen.get_file_list(None,['fits']) == True
 
