@@ -6,3 +6,4 @@ pan-tg/
 *.egg-info
 notebooks/
 *.dll
+temp_timelapse/

@@ -6,6 +6,7 @@ import os
 import sys
 import numpy as np
 import astropy.io.fits as fits
+import astropy.visualization as v
 from colour_demosaicing import demosaicing_CFA_Bayer_bilinear, demosaicing_CFA_Bayer_Malvar2004 , demosaicing_CFA_Bayer_Menon2007
 import cv2
 # Configure log file
@@ -17,6 +18,10 @@ logging.basicConfig(format='%(asctime)s %(message)s',
 
 logging.info('Importing finished')                
 # logging errors and exiting
+
+# CONFIGURATION
+temp_dir = 'temp_timelapse'
+
 def log_error_exit(message):
     """ Simple wrappper around the logging.error and sys.exit functions. Logs the ERROR message to the log file
         and exits the program with the same message sent to stdout.
@@ -134,7 +139,7 @@ def save_image(image_data, image_name):
     ------------
     True if file write was successful. Else exits with error.
     """
-    temp_dir = 'temp_timelapse'
+    
 
     if not type(image_data) == np.ndarray:
         log_error_exit('Input not of type np.ndarray')
@@ -156,16 +161,16 @@ def save_image(image_data, image_name):
 def generate_timelapse_from_images(path_to_images, output_path):
     """ Read the path to the image files and create a video stream. The output is a single video file
         in mp4 format.
-    ------------
-    parameters
-    ------------
-    path_to_images : The file path to the previously generated jpgs/tiffs.
-    output_path : The path to where to write the video.
+        ------------
+        parameters
+        ------------
+        path_to_images : The file path to the previously generated jpgs/tiffs.
+        output_path : The path to where to write the video.
 
-    ------------
-    returns
-    ------------
-    True if video write was successful. Else exits with error.
+        ------------
+        returns
+        ------------
+        True if video write was successful. Else exits with error.
     """    
     file_list = get_file_list(path_to_images,['jpg','tif'])
     if len(file_list) == 0:
@@ -201,9 +206,11 @@ def generate_timelapse_from_images(path_to_images, output_path):
 # If directory is valid, display summary of folder contents and proceed to .
 @click.command()
 @click.option('--in_path','-i',help='Path to the directory containing the FITS files.',required=True)
-@click.option('--out_path','-o',help='Location at where the timelapse will be saved.')
-@click.option('--options',help='Additional options to be specified.')
-def main(in_path,out_path,options):
+@click.option('--out_path','-o',help='Location at where the timelapse will be saved.',default = '.')
+@click.option('--m',help='Number of rows to split image into',default = 1)
+@click.option('--n',help='Number of columns to split image into',default = 1)
+@click.option('--cell',help='The grid cell to choose. Specified by row and column indices. Zero indexed. Eg:(0,1)',type=(int,int),default=(0,0))
+def main(in_path,out_path,m,n,cell):
     """ Generates a timelapse from the input FITS files (directory) and saves it to the given path.
         ----------
         parameters
@@ -216,10 +223,32 @@ def main(in_path,out_path,options):
         ----------
         True if timelapse generated successfully.
     """
-    fits_files = get_file_list(in_path,['.fits','.fz'])
+    # Step 1: Get FITS files from input path.
+    fits_files = get_file_list(in_path,['fits','fz'])
     
-      
+    # Step 2: Choose the transform you want to apply.
+    transform = v.LogStretch(1)+v.PercentileInterval(99)
+    
+    # Step 3: 
+    for file in fits_files:
+        # Read FITS
+        fits_data = fits.getdata(file)
+        # Flip up down 
+        flipped_data = np.flipud(fits_data)
+        # Debayer with 'RGGB'
+        rgb_data = debayer_image_array(flipped_data,pattern='RGGB')
+        # Additional processing
+        rgb_data = 255 * transform(rgb_data)
+        rgb_data = rgb_data.astype(np.uint8)
+        bgr_data = cv2.cvtColor(rgb_data,cv2.COLOR_RGB2BGR)
+        # split image 
+        interested_data = get_sub_image(bgr_data,m,n,cell[0],cell[1])
+        # save processed image to temp_dir
+        save_image(interested_data,os.path.split(file)[-1].split('.')[0])
 
+    generate_timelapse_from_images('temp_timelapse','t')
+
+    return True  
 
 if __name__ == '__main__':
     main()
