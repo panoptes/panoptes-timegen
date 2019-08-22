@@ -7,3 +7,5 @@ pan-tg/
 notebooks/
 *.dll
 temp_timelapse/
+*.mp4
+*.avi

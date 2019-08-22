@@ -9,12 +9,13 @@ import astropy.io.fits as fits
 import astropy.visualization as v
 from colour_demosaicing import demosaicing_CFA_Bayer_bilinear, demosaicing_CFA_Bayer_Malvar2004 , demosaicing_CFA_Bayer_Menon2007
 import cv2
+import tqdm
 # Configure log file
 logging.basicConfig(format='%(asctime)s %(message)s',
                 datefmt='%m/%d/%Y %I:%M:%S %p',
-                filename='..\logs.log',
+                filename='.\logs.log',
                 filemode='w',
-                level=logging.INFO)
+                level=logging.DEBUG)
 
 logging.info('Importing finished')                
 # logging errors and exiting
@@ -112,20 +113,21 @@ def get_sub_image(data,M,N,m,n):
 # 3. Take files from temporary location and build timelapse from them.
 
 # Other Requirements: Should be able to continue from where it left off in case of breakdown.    
-def clear_dir(temp_dir):
-    if not os.path.isdir(temp_dir):
+def clear_dir(path_to_dir):
+    if not os.path.isdir(path_to_dir):
         return False
-    temp_files = os.listdir(temp_dir)
+    temp_files = os.listdir(path_to_dir)
     if not len(temp_files)== 0:
         # If the temporary directory has files,delete them
         for file in temp_files:
-            file_path = os.path.join(temp_dir,file)
+            file_path = os.path.join(path_to_dir,file)
             os.remove(file_path)
     return True        
 
-def save_image(image_data, image_name):
+def save_image(image_data, image_name ,path=temp_dir):
     """ Save the given image data as a jpg image at the path specified. A helper function to store the intermediate
-    jpg images before generating the timelapse from them.
+    jpg images before generating the timelapse from them. Always makes sure the image is in landscape mode by rotating it clockwise 
+    by 90 degrees if necessary.
     
     ------------
     parameters
@@ -144,17 +146,21 @@ def save_image(image_data, image_name):
     if not type(image_data) == np.ndarray:
         log_error_exit('Input not of type np.ndarray')
     
-    if not os.path.isdir(temp_dir):
+    if not os.path.isdir(path):
         #if not a directory then create the directory
-        os.mkdir(temp_dir)
+        os.mkdir(path)
           
     if image_data.dtype == np.uint16:
         image_name = image_name + '.tif'
     else:
         image_name = image_name + '.jpg'
     
-    image_path = os.path.join(temp_dir,image_name)   
-    print(image_path,image_name)
+    image_path = os.path.join(path,image_name)   
+    logging.info(image_path)
+    # Change to landscape mode by rotating clockwise if necessary.
+    img_rows,img_cols = image_data.shape[0:2]
+    if img_rows > img_cols:
+        image_data = np.rot90(image_data, -1)
     return cv2.imwrite(image_path , image_data)    
     
 
@@ -188,7 +194,7 @@ def generate_timelapse_from_images(path_to_images, output_path):
     # Essentially, the name of the file is kept as the name of the video. The extension is changed.
     logging.info(video_name)
     height, width = pilot_frame.shape[0:2]
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    fourcc = cv2.VideoWriter_fourcc(*'MP4V')
     try:
         video_writer = cv2.VideoWriter(video_name + '.mp4', fourcc, 1, (width ,height), True)
         logging.info(video_writer.getBackendName())
@@ -211,17 +217,17 @@ def generate_timelapse_from_images(path_to_images, output_path):
 @click.option('--n',help='Number of columns to split image into',default = 1)
 @click.option('--cell',help='The grid cell to choose. Specified by row and column indices. Zero indexed. Eg:(0,1)',type=(int,int),default=(0,0))
 def main(in_path,out_path,m,n,cell):
-    """ Generates a timelapse from the input FITS files (directory) and saves it to the given path.
-        ----------
-        parameters
-        ----------
-        in_path  : The path to the directory containing the input FITS files (*.fits or *.fits.fz)
-        out_path : The path at which the output timelapse will be saved. If unspecified writes to .\timelapse
-        options  : Additional options.   
-        ----------
-        returns
-        ----------
-        True if timelapse generated successfully.
+    """ Generates a timelapse from the input FITS files (directory) and saves it to the given path. \n
+        ---------- \n
+        parameters \n
+        ---------- \n
+        in_path  : The path to the directory containing the input FITS files (*.fits or *.fits.fz) \n
+        out_path : The path at which the output timelapse will be saved. If unspecified writes to .\\timelapse \n
+        options  : Additional options. \n  
+        ---------- \n
+        returns \n
+        ---------- \n
+        True if timelapse generated successfully. \n
     """
     # Step 1: Get FITS files from input path.
     fits_files = get_file_list(in_path,['fits','fz'])
@@ -229,10 +235,17 @@ def main(in_path,out_path,m,n,cell):
     # Step 2: Choose the transform you want to apply.
     transform = v.LogStretch(1)+v.PercentileInterval(99)
     
-    # Step 3: 
-    for file in fits_files:
+    # Step 3: Clear the temp_dir directory
+    
+    # Step 4: 
+    for file in tqdm.tqdm(fits_files):
         # Read FITS
-        fits_data = fits.getdata(file)
+        try:
+            fits_data = fits.getdata(file)
+        except Exception as e:
+            # If the current FITS file can't be opened, log and skip it.
+            logging.error(str(e))
+            continue    
         # Flip up down 
         flipped_data = np.flipud(fits_data)
         # Debayer with 'RGGB'
@@ -244,7 +257,10 @@ def main(in_path,out_path,m,n,cell):
         # split image 
         interested_data = get_sub_image(bgr_data,m,n,cell[0],cell[1])
         # save processed image to temp_dir
-        save_image(interested_data,os.path.split(file)[-1].split('.')[0])
+        try:
+            save_image(interested_data,os.path.split(file)[-1].split('.')[0],path = temp_dir)
+        except Exception as e:
+            logging.error(str(e))    
 
     generate_timelapse_from_images('temp_timelapse','t')
 
