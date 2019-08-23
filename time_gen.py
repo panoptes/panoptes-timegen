@@ -13,7 +13,7 @@ import tqdm
 # Configure log file
 logging.basicConfig(format='%(asctime)s %(message)s',
                 datefmt='%m/%d/%Y %I:%M:%S %p',
-                filename='.\logs.log',
+                filename='logs.log',
                 filemode='w',
                 level=logging.DEBUG)
 
