@@ -194,7 +194,7 @@ def generate_timelapse_from_images(path_to_images, output_path):
     # Essentially, the name of the file is kept as the name of the video. The extension is changed.
     logging.info(video_name)
     height, width = pilot_frame.shape[0:2]
-    fourcc = cv2.VideoWriter_fourcc(*'MP4V')
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     try:
         video_writer = cv2.VideoWriter(video_name + '.mp4', fourcc, 1, (width ,height), True)
         logging.info(video_writer.getBackendName())
@@ -231,13 +231,14 @@ def main(in_path,out_path,m,n,cell):
     """
     # Step 1: Get FITS files from input path.
     fits_files = get_file_list(in_path,['fits','fz'])
+
+    # Step 1.5: Remove files containing the string 'background' from the FITS filename
+    fits_files = [fname for fname in fits_files if 'background.fits' not in fname]
     
     # Step 2: Choose the transform you want to apply.
     transform = v.LogStretch(1)+v.PercentileInterval(99)
     
-    # Step 3: Clear the temp_dir directory
-    
-    # Step 4: 
+    # Step 3: 
     for file in tqdm.tqdm(fits_files):
         # Read FITS
         try:
@@ -264,6 +265,12 @@ def main(in_path,out_path,m,n,cell):
 
     generate_timelapse_from_images('temp_timelapse','t')
 
+    # Delete temporary files
+    try:
+        clear_dir(temp_dir)
+    except Exception as e:
+        print('Clearing TEMP Files failed. See log for more details')
+        logging.error(str(e))     
     return True  
 
 if __name__ == '__main__':
