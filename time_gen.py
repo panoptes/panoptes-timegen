@@ -275,12 +275,14 @@ def timegen(in_path, out_path, m, n, cell, stretch, full_hd):
 
     # Step 1.5: Remove files containing the string 'background' from the FITS filename
     fits_files = [fname for fname in fits_files if 'background.fits' not in fname]
+    fits_files = [fname for fname in fits_files if 'pointing00.fits' not in fname]
 
     # Step 2: Choose the transform you want to apply.
     # TG_LOG_1_PERCENTILE_99
     transform = v.LogStretch(1) + v.PercentileInterval(99)
     if stretch == 'TG_SQRT_PERCENTILE_99':
         transform = v.SqrtStretch() + v.PercentileInterval(99)
+    elif stretch == 'TG'    
     
     # Step 3:
     for file in tqdm.tqdm(fits_files):
