@@ -171,7 +171,7 @@ def save_image(image_data, image_name, path=temp_dir):
     return cv2.imwrite(image_path, image_data)
 
 
-def generate_timelapse_from_images(path_to_images, output_path):
+def generate_timelapse_from_images(path_to_images, output_path, force_HD):
     """ Read the path to the image files and create a video stream. The output is a single video file
         in mp4 format.
         ------------
@@ -211,7 +211,11 @@ def generate_timelapse_from_images(path_to_images, output_path):
     # Essentially, the name of the file is kept as the name of the video. The extension is changed.
     logging.info(video_path)
     height, width = pilot_frame.shape[0:2]
-    # Try H264 encoding with openh264 support on windows. If fails shift to mp4v encoding with FFMPEG
+
+    # If force_HD is true, create video_writer with width = 1080p and height = 1920p
+    height = 1080
+    width = 1920
+
     fourcc = cv2.VideoWriter_fourcc(*'avc1')
     video_writer = cv2.VideoWriter(video_path + '.mp4', fourcc, 1 , (width,height), True)
     try :
@@ -226,6 +230,8 @@ def generate_timelapse_from_images(path_to_images, output_path):
     
     for frame_name in frame_list[1:]:
         frame = cv2.imread(frame_name)
+        if force_HD:
+            frame = cv2.resize(frame,(width,height))
         video_writer.write(frame)
     return True
 
@@ -246,14 +252,19 @@ TG_SQRT_PERCENTILE_99  -> SqrtStretch() + PercentileInterval(99) \n
 @click.option('--n', help = 'Number of columns to split image into', default = 1)
 @click.option('--cell', help = 'The grid cell to choose. Specified by row and column indices. Zero indexed. Eg:(0,1)', type=(int, int), default=(0, 0))
 @click.option('-s', '--stretch', type = str, help = transform_string_help, default = 'TG_LOG_1_PERCENTILE_99')
-def main(in_path, out_path, m, n, cell, stretch):
+@click.option('--force_HD',is_flag = True, help = 'Forces the output video to 1920 * 1080p irrespective of the actual dimensions')
+def main(in_path, out_path, m, n, cell, stretch, force_HD):
     """ Generates a timelapse from the input FITS files (directory) and saves it to the given path. \n
         ---------- \n
         parameters \n
         ---------- \n
         in_path  : The path to the directory containing the input FITS files (*.fits or *.fits.fz) \n
         out_path : The path at which the output timelapse will be saved. If unspecified writes to .\\timelapse \n
-        options  : Additional options. \n  
+        m        : Number of rows to split image into \n
+        n        : Number of columns to split image into \n
+        cell     : The grid cell to choose. Specified by row and column indices. (0,1)
+        stretch  : String specifying what stretches to apply on the image
+        force_HD : Force the video to be 1920 * 1080 pixels.    
         ---------- \n
         returns \n
         ---------- \n
@@ -299,7 +310,7 @@ def main(in_path, out_path, m, n, cell, stretch):
     # Step 4: Validate output path and create if it doesn't exist.   
          
     # Step 5: Create timelapse from the temporary files        
-    generate_timelapse_from_images('temp_timelapse', out_path)
+    generate_timelapse_from_images('temp_timelapse', out_path ,force_HD)
 
     # Delete temporary files
     try:
