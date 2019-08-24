@@ -24,7 +24,7 @@ def file_download(url,fname):
 @click.command()
 @click.option('-i','--in_file',type=click.File('r'),help="Text file with URLs of FITS images",required=True)
 @click.option('-o','--out',type=str,help='Path to output directory',default = r'.')
-def downloader(in_file,out,transform):
+def downloader(in_file,out):
     """Downloads and stores the FITS files to a directory from a text file downloaded from panoptes-data.net \n
     ----------- \n
     parameters  \n
