@@ -171,7 +171,7 @@ def save_image(image_data, image_name, path=temp_dir):
     return cv2.imwrite(image_path, image_data)
 
 
-def generate_timelapse_from_images(path_to_images, output_path, force_HD):
+def generate_timelapse_from_images(path_to_images, output_path, hd_flag):
     """ Read the path to the image files and create a video stream. The output is a single video file
         in mp4 format.
         ------------
@@ -213,9 +213,9 @@ def generate_timelapse_from_images(path_to_images, output_path, force_HD):
     height, width = pilot_frame.shape[0:2]
 
     # If force_HD is true, create video_writer with width = 1080p and height = 1920p
-    height = 1080
-    width = 1920
-
+    if hd_flag:
+        height = 1080
+        width = 1920
     fourcc = cv2.VideoWriter_fourcc(*'avc1')
     video_writer = cv2.VideoWriter(video_path + '.mp4', fourcc, 1 , (width,height), True)
     try :
@@ -230,7 +230,7 @@ def generate_timelapse_from_images(path_to_images, output_path, force_HD):
     
     for frame_name in frame_list[1:]:
         frame = cv2.imread(frame_name)
-        if force_HD:
+        if hd_flag:
             frame = cv2.resize(frame,(width,height))
         video_writer.write(frame)
     return True
@@ -252,8 +252,8 @@ TG_SQRT_PERCENTILE_99  -> SqrtStretch() + PercentileInterval(99) \n
 @click.option('--n', help = 'Number of columns to split image into', default = 1)
 @click.option('--cell', help = 'The grid cell to choose. Specified by row and column indices. Zero indexed. Eg:(0,1)', type=(int, int), default=(0, 0))
 @click.option('-s', '--stretch', type = str, help = transform_string_help, default = 'TG_LOG_1_PERCENTILE_99')
-@click.option('--force_HD',is_flag = True, help = 'Forces the output video to 1920 * 1080p irrespective of the actual dimensions')
-def main(in_path, out_path, m, n, cell, stretch, force_HD):
+@click.option('--full_hd', is_flag=True)
+def timegen(in_path, out_path, m, n, cell, stretch, full_hd):
     """ Generates a timelapse from the input FITS files (directory) and saves it to the given path. \n
         ---------- \n
         parameters \n
@@ -264,7 +264,7 @@ def main(in_path, out_path, m, n, cell, stretch, force_HD):
         n        : Number of columns to split image into \n
         cell     : The grid cell to choose. Specified by row and column indices. (0,1)
         stretch  : String specifying what stretches to apply on the image
-        force_HD : Force the video to be 1920 * 1080 pixels.    
+        full_hd : Force the video to be 1920 * 1080 pixels.    
         ---------- \n
         returns \n
         ---------- \n
@@ -295,12 +295,11 @@ def main(in_path, out_path, m, n, cell, stretch, force_HD):
         flipped_data = np.flipud(fits_data)
         # Debayer with 'RGGB'
         rgb_data = debayer_image_array(flipped_data, pattern='RGGB')
+        interested_data = get_sub_image(rgb_data, m, n, cell[0], cell[1])
         # Additional processing
-        rgb_data = 255 * transform(rgb_data)
-        rgb_data = rgb_data.astype(np.uint8)
+        interested_data = 255 * transform(interested_data)
+        rgb_data = interested_data.astype(np.uint8)
         bgr_data = cv2.cvtColor(rgb_data, cv2.COLOR_RGB2BGR)
-        # split image
-        interested_data = get_sub_image(bgr_data, m, n, cell[0], cell[1])
         # save processed image to temp_dir
         try:
             save_image(interested_data, os.path.split(
@@ -310,7 +309,7 @@ def main(in_path, out_path, m, n, cell, stretch, force_HD):
     # Step 4: Validate output path and create if it doesn't exist.   
          
     # Step 5: Create timelapse from the temporary files        
-    generate_timelapse_from_images('temp_timelapse', out_path ,force_HD)
+    generate_timelapse_from_images('temp_timelapse', out_path ,hd_flag = full_hd)
 
     # Delete temporary files
     try:
@@ -322,4 +321,4 @@ def main(in_path, out_path, m, n, cell, stretch, force_HD):
 
 
 if __name__ == '__main__':
-    main()
+    timegen()
