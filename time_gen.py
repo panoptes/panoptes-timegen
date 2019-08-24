@@ -185,6 +185,13 @@ def generate_timelapse_from_images(path_to_images, output_path):
         ------------
         True if video write was successful. Else exits with error.
     """
+    if not os.path.isdir(output_path):
+        # if not a directory then create the directory
+        try:
+            os.mkdir(output_path)
+        except Exception as e:
+            log_error_exit('Invalid Path to output')
+
     file_list = get_file_list(path_to_images, ['jpg', 'tif'])
     if len(file_list) == 0:
         log_error_exit('No frames found to generate video')
@@ -200,12 +207,13 @@ def generate_timelapse_from_images(path_to_images, output_path):
     pilot_frame = cv2.imread(frame_list[0])
     pilot_name = os.path.split(frame_list[0])[-1]
     video_name = pilot_name.split('.')[0]
+    video_path = os.path.join(output_path,video_name)
     # Essentially, the name of the file is kept as the name of the video. The extension is changed.
-    logging.info(video_name)
+    logging.info(video_path)
     height, width = pilot_frame.shape[0:2]
     # Try H264 encoding with openh264 support on windows. If fails shift to mp4v encoding with FFMPEG
     fourcc = cv2.VideoWriter_fourcc(*'avc1')
-    video_writer = cv2.VideoWriter(video_name + '.mp4', fourcc, 1 , (width,height), True)
+    video_writer = cv2.VideoWriter(video_path + '.mp4', fourcc, 1 , (width,height), True)
     try :
         video_writer.getBackendName()
         print('Using avc1 encoding')
@@ -214,7 +222,7 @@ def generate_timelapse_from_images(path_to_images, output_path):
         logging.error(str(e))     
         print('Using mp4v encoding')   
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        video_writer = cv2.VideoWriter(video_name + '.mp4', fourcc, 1, (width, height), True)  
+        video_writer = cv2.VideoWriter(video_path + '.mp4', fourcc, 1, (width, height), True)  
     
     for frame_name in frame_list[1:]:
         frame = cv2.imread(frame_name)
@@ -228,16 +236,16 @@ def generate_timelapse_from_images(path_to_images, output_path):
 transform_string_help = """One of the following values:
 TG_LOG_1_PERCENTILE_99 -> LogStretch(1) + PercentileInterval(99) \n
 TG_SQRT_PERCENTILE_99  -> SqrtStretch() + PercentileInterval(99) \n
-TG_      """
+     """
 
 
 @click.command()
-@click.option('--in_path', '-i', help='Path to the directory containing the FITS files.', required=True)
-@click.option('--out_path', '-o', help='Location at where the timelapse will be saved.', default='.')
-@click.option('--m', help='Number of rows to split image into', default=1)
-@click.option('--n', help='Number of columns to split image into', default=1)
-@click.option('--cell', help='The grid cell to choose. Specified by row and column indices. Zero indexed. Eg:(0,1)', type=(int, int), default=(0, 0))
-@click.option('-s', '--stretch', type=str, help=transform_string_help, default='TG_LOG_1_PERCENTILE_99')
+@click.option('--in_path', '-i', type = click.Path(file_okay = False, exists = True),help = 'Path to the directory containing the FITS files.', required = True)
+@click.option('--out_path', '-o', type = click.Path(file_okay = False), help = 'Location at where the timelapse will be saved.', default='.')
+@click.option('--m', help = 'Number of rows to split image into', default = 1)
+@click.option('--n', help = 'Number of columns to split image into', default = 1)
+@click.option('--cell', help = 'The grid cell to choose. Specified by row and column indices. Zero indexed. Eg:(0,1)', type=(int, int), default=(0, 0))
+@click.option('-s', '--stretch', type = str, help = transform_string_help, default = 'TG_LOG_1_PERCENTILE_99')
 def main(in_path, out_path, m, n, cell, stretch):
     """ Generates a timelapse from the input FITS files (directory) and saves it to the given path. \n
         ---------- \n
@@ -288,8 +296,10 @@ def main(in_path, out_path, m, n, cell, stretch):
                 file)[-1].split('.')[0], path=temp_dir)
         except Exception as e:
             logging.error(str(e))
-
-    generate_timelapse_from_images('temp_timelapse', 't')
+    # Step 4: Validate output path and create if it doesn't exist.   
+         
+    # Step 5: Create timelapse from the temporary files        
+    generate_timelapse_from_images('temp_timelapse', out_path)
 
     # Delete temporary files
     try:
