@@ -282,7 +282,7 @@ def timegen(in_path, out_path, m, n, cell, stretch, full_hd):
     transform = v.LogStretch(1) + v.PercentileInterval(99)
     if stretch == 'TG_SQRT_PERCENTILE_99':
         transform = v.SqrtStretch() + v.PercentileInterval(99)
-    elif stretch == 'TG'    
+    
     
     # Step 3:
     for file in tqdm.tqdm(fits_files):
