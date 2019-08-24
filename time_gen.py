@@ -7,21 +7,22 @@ import sys
 import numpy as np
 import astropy.io.fits as fits
 import astropy.visualization as v
-from colour_demosaicing import demosaicing_CFA_Bayer_bilinear, demosaicing_CFA_Bayer_Malvar2004 , demosaicing_CFA_Bayer_Menon2007
+from colour_demosaicing import demosaicing_CFA_Bayer_bilinear, demosaicing_CFA_Bayer_Malvar2004, demosaicing_CFA_Bayer_Menon2007
 import cv2
 import tqdm
 # Configure log file
 logging.basicConfig(format='%(asctime)s %(message)s',
-                datefmt='%m/%d/%Y %I:%M:%S %p',
-                filename='logs.log',
-                filemode='w',
-                level=logging.DEBUG)
+                    datefmt='%m/%d/%Y %I:%M:%S %p',
+                    filename='logs.log',
+                    filemode='w',
+                    level=logging.DEBUG)
 
-logging.info('Importing finished')                
+logging.info('Importing finished')
 # logging errors and exiting
 
 # CONFIGURATION
 temp_dir = 'temp_timelapse'
+
 
 def log_error_exit(message):
     """ Simple wrappper around the logging.error and sys.exit functions. Logs the ERROR message to the log file
@@ -30,8 +31,10 @@ def log_error_exit(message):
     logging.error(message)
     sys.exit(message)
 
-#Step 0: Read command line args
-def get_file_list(path , extensions):
+# Step 0: Read command line args
+
+
+def get_file_list(path, extensions):
     """ Helper function to validate the given in_path. Checks if the path is valid and if valid 
         checks if the directory contains files with the specified extension and returns a list of paths. (*.fits or *.fits.fz)
         ----------
@@ -48,15 +51,16 @@ def get_file_list(path , extensions):
         log_error_exit('Directory invalid.')
     else:
         files_list = []
-        # The FITS files are named in numerically ascending order with an optional 
+        # The FITS files are named in numerically ascending order with an optional
         for file in os.listdir(path):
             if file.split('.')[-1] in extensions:
-                files_list.append(os.path.join(path,file))
+                files_list.append(os.path.join(path, file))
         if len(files_list) == 0:
-            log_error_exit('No files with given extensins found !')       
-    return sorted(files_list)        
-       
-def debayer_image_array(data, algorithm = 'bilinear',pattern = 'GRBG'):
+            log_error_exit('No files with given extensins found !')
+    return sorted(files_list)
+
+
+def debayer_image_array(data, algorithm='bilinear', pattern='GRBG'):
     """ Returns the RGB data after bilinear interpolation on the given array.
         ----------
         parameters  
@@ -72,7 +76,7 @@ def debayer_image_array(data, algorithm = 'bilinear',pattern = 'GRBG'):
     # Check to see if data is two dimensional
     try:
         assert len(data.shape) == 2, 'Shape is not 2 dimensional'
-    except AssertionError:    
+    except AssertionError:
         log_error_exit('Image data input to debayer is not 2 dimensional')
 
     if algorithm == 'bilinear':
@@ -80,10 +84,11 @@ def debayer_image_array(data, algorithm = 'bilinear',pattern = 'GRBG'):
     elif algorithm == 'malvar2004':
         rgb_data = demosaicing_CFA_Bayer_Malvar2004(data, pattern)
     elif algorithm == 'menon2007':
-        rgb_data = demosaicing_CFA_Bayer_Menon2007(data,pattern)
-    return rgb_data.astype(np.uint16)            
+        rgb_data = demosaicing_CFA_Bayer_Menon2007(data, pattern)
+    return rgb_data.astype(np.uint16)
 
-def get_sub_image(data,M,N,m,n):
+
+def get_sub_image(data, M, N, m, n):
     """Divides the image into M*N parts and returns the grid on row m and column n
        -----------
        parameters
@@ -98,71 +103,73 @@ def get_sub_image(data,M,N,m,n):
        -----------
        Sub array from input array.
     """
-    rows,columns = data.shape[0:2]
-    assert M<=rows and N<=columns,"Grid dimensions exceed Image dimensions"
-    return data[m*int(rows/M) : (m+1)*int(rows/M), n*int(columns/N) : (n+1)*int(columns/N)]
+    rows, columns = data.shape[0:2]
+    assert M <= rows and N <= columns, "Grid dimensions exceed Image dimensions"
+    return data[m*int(rows/M): (m+1)*int(rows/M), n*int(columns/N): (n+1)*int(columns/N)]
 # A broad overview of the pipeline
 # 1. Get directory of FITS files. One directory of observations. If download txt file specified, take care of everything.
 
 # 2. For each FITS file:
 #   a. debayer and get R,G,B arrays of type np.uint16
 #   b. <contrast stretching> <histogram equalization>
-#   c. generate final image. 'jpg' preferably. 
+#   c. generate final image. 'jpg' preferably.
 #   d. store jpg to temporary location.
 
 # 3. Take files from temporary location and build timelapse from them.
 
-# Other Requirements: Should be able to continue from where it left off in case of breakdown.    
+# Other Requirements: Should be able to continue from where it left off in case of breakdown.
+
+
 def clear_dir(path_to_dir):
     if not os.path.isdir(path_to_dir):
         return False
     temp_files = os.listdir(path_to_dir)
-    if not len(temp_files)== 0:
+    if not len(temp_files) == 0:
         # If the temporary directory has files,delete them
         for file in temp_files:
-            file_path = os.path.join(path_to_dir,file)
+            file_path = os.path.join(path_to_dir, file)
             os.remove(file_path)
-    return True        
+    return True
 
-def save_image(image_data, image_name ,path=temp_dir):
+
+def save_image(image_data, image_name, path=temp_dir):
     """ Save the given image data as a jpg image at the path specified. A helper function to store the intermediate
     jpg images before generating the timelapse from them. Always makes sure the image is in landscape mode by rotating it clockwise 
     by 90 degrees if necessary.
-    
+
     ------------
     parameters
     ------------
     image_data : numpy array of shape (rows,columns,3) returned by debayering. datatype should be np.uint16
     image_name: The name with which to save the image.
     path : The path to where the frames should be saved.
-    
+
     ------------
     returns
     ------------
     True if file write was successful. Else exits with error.
     """
-    
 
     if not type(image_data) == np.ndarray:
         log_error_exit('Input not of type np.ndarray')
-    
+
     if not os.path.isdir(path):
-        #if not a directory then create the directory
+        # if not a directory then create the directory
         os.mkdir(path)
-          
+
     if image_data.dtype == np.uint16:
         image_name = image_name + '.tif'
     else:
         image_name = image_name + '.jpg'
-    
-    image_path = os.path.join(path,image_name)   
+
+    image_path = os.path.join(path, image_name)
     logging.info(image_path)
     # Change to landscape mode by rotating clockwise if necessary.
-    img_rows,img_cols = image_data.shape[0:2]
+    img_rows, img_cols = image_data.shape[0:2]
     if img_rows > img_cols:
         image_data = np.rot90(image_data, -1)
-    return cv2.imwrite(image_path , image_data)    
-    
+    return cv2.imwrite(image_path, image_data)
+
 
 def generate_timelapse_from_images(path_to_images, output_path):
     """ Read the path to the image files and create a video stream. The output is a single video file
@@ -177,16 +184,18 @@ def generate_timelapse_from_images(path_to_images, output_path):
         returns
         ------------
         True if video write was successful. Else exits with error.
-    """    
-    file_list = get_file_list(path_to_images,['jpg','tif'])
+    """
+    file_list = get_file_list(path_to_images, ['jpg', 'tif'])
     if len(file_list) == 0:
         log_error_exit('No frames found to generate video')
-     
-    frame_list = [file_name for file_name in file_list if file_name.endswith('tif')]
+
+    frame_list = [
+        file_name for file_name in file_list if file_name.endswith('tif')]
     # If there are no TIF files, search for JPG files
     if len(frame_list) == 0:
-        frame_list = [file_name for file_name in file_list if file_name.endswith('jpg')]
-    
+        frame_list = [
+            file_name for file_name in file_list if file_name.endswith('jpg')]
+
     # Read first file and get frame size to define the video writer settings
     pilot_frame = cv2.imread(frame_list[0])
     pilot_name = os.path.split(frame_list[0])[-1]
@@ -194,29 +203,42 @@ def generate_timelapse_from_images(path_to_images, output_path):
     # Essentially, the name of the file is kept as the name of the video. The extension is changed.
     logging.info(video_name)
     height, width = pilot_frame.shape[0:2]
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    try:
-        video_writer = cv2.VideoWriter(video_name + '.mp4', fourcc, 1, (width ,height), True)
-        logging.info(video_writer.getBackendName())
+    # Try H264 encoding with openh264 support on windows. If fails shift to mp4v encoding with FFMPEG
+    fourcc = cv2.VideoWriter_fourcc(*'avc1')
+    video_writer = cv2.VideoWriter(video_name + '.mp4', fourcc, 1 , (width,height), True)
+    try :
+        video_writer.getBackendName()
+        print('Using avc1 encoding')
     except Exception as e:
-        logging.error(e)
-        print('Error with the VideoWriter. Check to see if you have the right codecs.')
-        
+        logging.error('avc1 encoding failed with message: ')
+        logging.error(str(e))     
+        print('Using mp4v encoding')   
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        video_writer = cv2.VideoWriter(video_name + '.mp4', fourcc, 1, (width, height), True)  
+    
     for frame_name in frame_list[1:]:
         frame = cv2.imread(frame_name)
         video_writer.write(frame)
-    return True    
+    return True
 
-#Step 1:
+
+# Step 1:
 # Check if the given directory is valid. If not valid: exit and show proper usage guidelines
 # If directory is valid, display summary of folder contents and proceed to .
+transform_string_help = """One of the following values:
+TG_LOG_1_PERCENTILE_99 -> LogStretch(1) + PercentileInterval(99) \n
+TG_SQRT_PERCENTILE_99  -> SqrtStretch() + PercentileInterval(99) \n
+TG_      """
+
+
 @click.command()
-@click.option('--in_path','-i',help='Path to the directory containing the FITS files.',required=True)
-@click.option('--out_path','-o',help='Location at where the timelapse will be saved.',default = '.')
-@click.option('--m',help='Number of rows to split image into',default = 1)
-@click.option('--n',help='Number of columns to split image into',default = 1)
-@click.option('--cell',help='The grid cell to choose. Specified by row and column indices. Zero indexed. Eg:(0,1)',type=(int,int),default=(0,0))
-def main(in_path,out_path,m,n,cell):
+@click.option('--in_path', '-i', help='Path to the directory containing the FITS files.', required=True)
+@click.option('--out_path', '-o', help='Location at where the timelapse will be saved.', default='.')
+@click.option('--m', help='Number of rows to split image into', default=1)
+@click.option('--n', help='Number of columns to split image into', default=1)
+@click.option('--cell', help='The grid cell to choose. Specified by row and column indices. Zero indexed. Eg:(0,1)', type=(int, int), default=(0, 0))
+@click.option('-s', '--stretch', type=str, help=transform_string_help, default='TG_LOG_1_PERCENTILE_99')
+def main(in_path, out_path, m, n, cell, stretch):
     """ Generates a timelapse from the input FITS files (directory) and saves it to the given path. \n
         ---------- \n
         parameters \n
@@ -230,15 +252,18 @@ def main(in_path,out_path,m,n,cell):
         True if timelapse generated successfully. \n
     """
     # Step 1: Get FITS files from input path.
-    fits_files = get_file_list(in_path,['fits','fz'])
+    fits_files = get_file_list(in_path, ['fits', 'fz'])
 
     # Step 1.5: Remove files containing the string 'background' from the FITS filename
     fits_files = [fname for fname in fits_files if 'background.fits' not in fname]
-    
+
     # Step 2: Choose the transform you want to apply.
-    transform = v.LogStretch(1)+v.PercentileInterval(99)
+    # TG_LOG_1_PERCENTILE_99
+    transform = v.LogStretch(1) + v.PercentileInterval(99)
+    if stretch == 'TG_SQRT_PERCENTILE_99':
+        transform = v.SqrtStretch() + v.PercentileInterval(99)
     
-    # Step 3: 
+    # Step 3:
     for file in tqdm.tqdm(fits_files):
         # Read FITS
         try:
@@ -246,32 +271,34 @@ def main(in_path,out_path,m,n,cell):
         except Exception as e:
             # If the current FITS file can't be opened, log and skip it.
             logging.error(str(e))
-            continue    
-        # Flip up down 
+            continue
+        # Flip up down
         flipped_data = np.flipud(fits_data)
         # Debayer with 'RGGB'
-        rgb_data = debayer_image_array(flipped_data,pattern='RGGB')
+        rgb_data = debayer_image_array(flipped_data, pattern='RGGB')
         # Additional processing
         rgb_data = 255 * transform(rgb_data)
         rgb_data = rgb_data.astype(np.uint8)
-        bgr_data = cv2.cvtColor(rgb_data,cv2.COLOR_RGB2BGR)
-        # split image 
-        interested_data = get_sub_image(bgr_data,m,n,cell[0],cell[1])
+        bgr_data = cv2.cvtColor(rgb_data, cv2.COLOR_RGB2BGR)
+        # split image
+        interested_data = get_sub_image(bgr_data, m, n, cell[0], cell[1])
         # save processed image to temp_dir
         try:
-            save_image(interested_data,os.path.split(file)[-1].split('.')[0],path = temp_dir)
+            save_image(interested_data, os.path.split(
+                file)[-1].split('.')[0], path=temp_dir)
         except Exception as e:
-            logging.error(str(e))    
+            logging.error(str(e))
 
-    generate_timelapse_from_images('temp_timelapse','t')
+    generate_timelapse_from_images('temp_timelapse', 't')
 
     # Delete temporary files
     try:
         clear_dir(temp_dir)
     except Exception as e:
         print('Clearing TEMP Files failed. See log for more details')
-        logging.error(str(e))     
-    return True  
+        logging.error(str(e))
+    return True
+
 
 if __name__ == '__main__':
     main()
