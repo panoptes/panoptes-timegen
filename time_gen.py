@@ -1,4 +1,3 @@
-#!usr/bin/env python3
 # The command line script that generates the timelapse
 # Libraries imported here.
 import logging
@@ -197,12 +196,10 @@ def generate_timelapse_from_images(path_to_images, output_path, hd_flag):
     if len(file_list) == 0:
         log_error_exit('No frames found to generate video')
 
-    frame_list = [
-        file_name for file_name in file_list if file_name.endswith('tif')]
+    frame_list = [file_name for file_name in file_list if file_name.endswith('tif')]
     # If there are no TIF files, search for JPG files
     if len(frame_list) == 0:
-        frame_list = [
-            file_name for file_name in file_list if file_name.endswith('jpg')]
+        frame_list = [file_name for file_name in file_list if file_name.endswith('jpg')]
 
     # Read first file and get frame size to define the video writer settings
     pilot_frame = cv2.imread(frame_list[0])
@@ -240,9 +237,15 @@ def generate_timelapse_from_images(path_to_images, output_path, hd_flag):
 # Step 1:
 # Check if the given directory is valid. If not valid: exit and show proper usage guidelines
 # If directory is valid, display summary of folder contents and proceed to .
-transform_string_help = """One of the following values:
+transform_string_help = """One of the following values:\n
 TG_LOG_1_PERCENTILE_99 -> LogStretch(1) + PercentileInterval(99) \n
+TG_LOG_PERCENTILE_99   -> LogStretch() + PercentileInterval(99)  \n    
 TG_SQRT_PERCENTILE_99  -> SqrtStretch() + PercentileInterval(99) \n
+TG_ASINH_1_PERCENTILE_99 -> AsinhStretch(1) + PercentileInterval(99) \n
+TG_ASINH_PERCENTILE_99 -> AsinhStretch() + PercentileInterval(99) \n    
+TG_SQUARE_PERCENTILE_99 -> SquaredStretch() + PercentileInterval(99) \n
+TG_SINH_1_PERCENTILE_99 -> SinhStretch(1) + PercentileInterval(99) \n    
+TG_SINH_PERCENTILE_99   -> SinhStretch() + PercentileInterval(99)        
      """
 
 
@@ -253,7 +256,7 @@ TG_SQRT_PERCENTILE_99  -> SqrtStretch() + PercentileInterval(99) \n
 @click.option('--n', help = 'Number of columns to split image into', default = 1)
 @click.option('--cell', help = 'The grid cell to choose. Specified by row and column indices. Zero indexed. Eg:(0,1)', type=(int, int), default=(0, 0))
 @click.option('-s', '--stretch', type = str, help = transform_string_help, default = 'TG_LOG_1_PERCENTILE_99')
-@click.option('--full_hd', is_flag=True)
+@click.option('--full_hd', is_flag=True, help='Force full HD output video file')
 def timegen(in_path, out_path, m, n, cell, stretch, full_hd):
     """ Generates a timelapse from the input FITS files (directory) and saves it to the given path. \n
         ---------- \n
@@ -283,6 +286,20 @@ def timegen(in_path, out_path, m, n, cell, stretch, full_hd):
     transform = v.LogStretch(1) + v.PercentileInterval(99)
     if stretch == 'TG_SQRT_PERCENTILE_99':
         transform = v.SqrtStretch() + v.PercentileInterval(99)
+    elif stretch == 'TG_LOG_PERCENTILE_99':
+        transform = v.LogStretch() + v.PercentileInterval(99)
+    elif stretch == 'TG_ASINH_1_PERCENTILE_99':    
+        transform = v.AsinhStretch(1) + v.PercentileInterval(99)
+    elif stretch == 'TG_ASINH_PERCENTILE_99':
+        transform = v.AsinhStretch() + v.PercentileInterval(99)
+    elif stretch == 'TG_SQUARE_PERCENTILE_99':
+        transform = v.SquaredStretch() + v.PercentileInterval(99)
+    elif stretch == 'TG_SINH_1_PERCENTILE_99':
+        transform = v.SinhStretch(1) + v.PercentileInterval(99)
+    else:
+        transform = v..SinhStretch() + v.PercentileInterval(99)
+
+
     
     
     # Step 3:
