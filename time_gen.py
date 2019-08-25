@@ -1,3 +1,4 @@
+#!usr/bin/env python3
 # The command line script that generates the timelapse
 # Libraries imported here.
 import logging
