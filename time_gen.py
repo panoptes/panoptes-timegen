@@ -297,7 +297,7 @@ def timegen(in_path, out_path, m, n, cell, stretch, full_hd):
     elif stretch == 'TG_SINH_1_PERCENTILE_99':
         transform = v.SinhStretch(1) + v.PercentileInterval(99)
     else:
-        transform = v..SinhStretch() + v.PercentileInterval(99)
+        transform = v.SinhStretch() + v.PercentileInterval(99)
 
 
     
