@@ -1,6 +1,6 @@
 astropy==3.2.1
 Click==7.0
 colour-demosaicing==0.1.4
-numpy==1.17.0
+numpy==1.22.0
 opencv-python==4.1.0.25
 tqdm==4.33.0
